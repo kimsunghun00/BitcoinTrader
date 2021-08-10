@@ -96,7 +96,6 @@ if __name__ == '__main__':
     mk = MakeDataset(args.ticker, args.interval, frm = args.frm, to = args.to)
     data = mk.get_dataset()
 
-    if not os.path.exists("./data"):
-        os.makedirs("./data")
+    os.makedirs("./data", exist_ok=True)
     data.to_csv("./data/{}.csv".format(args.ticker))
     print('save completed')
