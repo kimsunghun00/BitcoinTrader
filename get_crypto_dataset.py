@@ -1,6 +1,7 @@
 import pyupbit
 import numpy as np
 import pandas as pd
+import os
 import tqdm
 import time
 import datetime
@@ -94,5 +95,8 @@ if __name__ == '__main__':
     print(f'{args.ticker} data is being obtained and processed')
     mk = MakeDataset(args.ticker, args.interval, frm = args.frm, to = args.to)
     data = mk.get_dataset()
+
+    if not os.path.exists("./data"):
+        os.makedirs("./data")
     data.to_csv("./data/{}.csv".format(args.ticker))
     print('save completed')
