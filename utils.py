@@ -163,12 +163,3 @@ def cal_log_return(data):
     data['log_return'] = np.zeros(len(data))
     data['log_return'] = np.log(data['close'] / data['close'].shift(1))
     return data
-
-
-
-def post_message(token, channel, text):
-    response = requests.post("https://slack.com/api/chat.postMessage",
-        headers={"Authorization": "Bearer "+token},
-        data={"channel": channel,"text": text}
-    )
-    print(response)
