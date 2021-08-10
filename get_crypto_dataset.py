@@ -9,24 +9,15 @@ import argparse
 from utils import *
 
 class MakeDataset:
-    def __init__(self, ticker, interval, frm, to = None, window = 2):
+    def __init__(self, ticker, interval, frm, to = None):
         self.ticker = ticker
         self.interval = interval
         self.frm = frm
         self.to = to
-        self.window = window
-        
         self.dataset = None
         
     def get_dataset(self):
         self.dataset = self.get_ohlcv_continue(self.ticker, self.interval, self.frm, self.to)
-
-        print('preprocessing..')
-        self.dataset = self.preprocess(self.dataset, self.window)
-
-        print('add variables..')
-        self.dataset = add_variables(self.dataset)
-
         print('done!')
         
         return self.dataset
@@ -93,15 +84,15 @@ class MakeDataset:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ticker', type = str, default = 'KRW-ETH')
-    parser.add_argument('--interval', type = str, default = 'minute3')
+    parser.add_argument('--ticker', type = str, default = 'KRW-BTC')
+    parser.add_argument('--interval', type = str, default = 'minute1')
     parser.add_argument('--frm', type = str, default = '2021-01-01 00:00:00')
     parser.add_argument('--to', type = str, default = None)
-    parser.add_argument('--window', type=int, default=5)
+
     args = parser.parse_args()
 
     print(f'{args.ticker} data is being obtained and processed')
-    mk = MakeDataset(args.ticker, args.interval, frm = args.frm, to = args.to, window=args.window)
+    mk = MakeDataset(args.ticker, args.interval, frm = args.frm, to = args.to)
     data = mk.get_dataset()
     data.to_csv("./data/{}.csv".format(args.ticker))
     print('save completed')
