@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import requests
 
 def add_variables(data):
     # 지난 시가 대비 시가 비율
