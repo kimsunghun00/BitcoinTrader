@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
+import requests
 
-def add_variables(data):
+def add_variables(data, train = True):
     # 지난 시가 대비 시가 비율
     data['open_lastopen_ratio'] = np.zeros(len(data))
     data.loc[1:, 'open_lastopen_ratio'] = (data['open'][1:].values - data['open'][:-1].values) / data['open'][
@@ -49,11 +50,11 @@ def add_variables(data):
     # stochastic oscillator
     data = cal_stochastic_oscillator(data)
 
-    # OBV
-    data = cal_OBV(data)
-
     # log return
     data = cal_log_return(data)
+
+    # MFI
+    data = cal_MFI(data)
 
     data.dropna(inplace=True)
     data.drop(['open', 'high', 'low', 'close', 'volume'], axis=1, inplace=True)
@@ -108,25 +109,14 @@ def cal_RSI(data, period = 9):
 
     AU = pd.Series(U, index = data.index).rolling(window=period, min_periods=period).mean()
     AD = pd.Series(D, index = data.index).rolling(window=period, min_periods=period).mean()
-    RS = AU / AD
-    data['RSI'] = 1 - 1 / (1 + RS)
-
+    data['RSI'] = AU.div(AD+AU)
     return data
 
-def cal_stochastic_oscillator(data, n = 5):
+def cal_stochastic_oscillator(data, window = 14):
     data = data.copy()
-    size = len(data)
-    temp=[]
-    for i in range(size):
-        if i >= n-1:
-            tempUp = data['close'][i] - min(data['low'][i-n+1:i+1])
-            tempDown = max(data['high'][i-n+1:i+1]) -  min(data['low'][i-n+1:i+1])
-            if tempDown == 0:
-                tempDown = 0.001
-            temp.append(tempUp / tempDown)
-        else:
-            temp.append(0) #n보다 작은 초기값은 0 설정
-    data['sto_K'] = pd.Series(temp,  index=data.index)
+    ndays_high = data['high'].rolling(window, min_periods=1).max()
+    ndays_low = data['low'].rolling(window, min_periods=1).min()
+    data['sto_K'] = (data['close'] - ndays_low) / (ndays_high - ndays_low)
     data['sto_D'] = data['sto_K'].rolling(3).mean()
     return data
 
@@ -145,14 +135,10 @@ def cal_OBV(data, n=9):
     OBV = pd.Series(OBV, index=data.index)
     data['OBV_ewm'] = OBV.ewm(n).mean()
 
-    # OBV signal
-    data['OBV_cross'] = pd.Series(np.where(OBV >= data['OBV_ewm'], 1,-1), index = data.index)
-
     # 지난 OBV_ewm 대비 OBV_ewm 비율
     data['OBV_lastOBV_ratio'] = np.zeros(len(data))
     data.loc[1:, 'OBV_lastOBV_ratio'] = (data['OBV_ewm'][1:].values - data['OBV_ewm'][:-1].values) / data['OBV_ewm'][
                                                                                                      :-1].values
-
     data.drop('OBV_ewm', axis=1, inplace=True)
 
     return data
@@ -162,3 +148,30 @@ def cal_log_return(data):
     data['log_return'] = np.zeros(len(data))
     data['log_return'] = np.log(data['close'] / data['close'].shift(1))
     return data
+
+def cal_MFI(data, window = 10):
+    data = data.copy()
+    data['TP'] = (data['high'] + data['low'] + data['close']) / 3
+    data['PMF'] = 0
+    data['NMF'] = 0
+    for i in range(len(data)-1):
+        if data['TP'].values[i] < data['TP'].values[i+1]:
+            data['PMF'].values[i+1] = data['TP'].values[i+1] * data['volume'].values[i+1]
+            data['NMF'].values[i+1] = 0
+        else:
+            data['NMF'].values[i+1] = data['TP'].values[i+1] * data['volume'].values[i+1]
+            data['PMF'].values[i+1] = 0
+    data['MFR'] = data['PMF'].rolling(window).sum() / data['NMF'].rolling(window).sum()
+    data['MFI'] = 1 - 1 / (1 + data['MFR'])
+
+    data.drop(['TP', 'PMF', 'NMF', 'MFR'], axis=1, inplace=True)
+
+    return data
+
+
+def post_message(token, channel, text):
+    response = requests.post("https://slack.com/api/chat.postMessage",
+        headers={"Authorization": "Bearer "+token},
+        data={"channel": channel,"text": text}
+    )
+    print(response)

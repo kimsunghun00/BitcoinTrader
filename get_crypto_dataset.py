@@ -1,13 +1,11 @@
 import pyupbit
-import numpy as np
-import pandas as pd
-import os
 import tqdm
 import time
 import datetime
 import argparse
+import pandas as pd
 
-from utils import *
+from utils import add_variables
 
 class MakeDataset:
     def __init__(self, ticker, interval, frm, to = None):
@@ -15,10 +13,18 @@ class MakeDataset:
         self.interval = interval
         self.frm = frm
         self.to = to
+        
         self.dataset = None
         
     def get_dataset(self):
         self.dataset = self.get_ohlcv_continue(self.ticker, self.interval, self.frm, self.to)
+
+        print('preprocessing..')
+        self.dataset = self.preprocess(self.dataset)
+
+        print('add variables..')
+        self.dataset = add_variables(self.dataset)
+
         print('done!')
         
         return self.dataset
@@ -80,7 +86,18 @@ class MakeDataset:
         data.sort_index(inplace=True)
 
         return data
+    
+    def preprocess(self, data, window=2):
+        data = data.copy()
+        data['low_pred'] = data['low'].rolling(window).apply(lambda x: (x.iloc[window-1] - x.iloc[0]) / x.iloc[0])
+        data['low_pred'] = data['low_pred'].shift(1)
+        data['close_pred'] = data['close'].rolling(window).apply(lambda x: (x.iloc[window - 1] - x.iloc[0]) / x.iloc[0])
+        data['close_pred'] = data['close_pred'].shift(1)
+        data['high_pred'] = data['high'].rolling(window).apply(lambda x: (x.iloc[window - 1] - x.iloc[0]) / x.iloc[0])
+        data['high_pred'] = data['high_pred'].shift(1)
 
+        data.dropna(inplace = True)
+        return data
 
 
 if __name__ == '__main__':
@@ -89,13 +106,11 @@ if __name__ == '__main__':
     parser.add_argument('--interval', type = str, default = 'minute1')
     parser.add_argument('--frm', type = str, default = '2021-01-01 00:00:00')
     parser.add_argument('--to', type = str, default = None)
-
+    parser.add_argument('--window', type=int, default=5)
     args = parser.parse_args()
 
     print(f'{args.ticker} data is being obtained and processed')
     mk = MakeDataset(args.ticker, args.interval, frm = args.frm, to = args.to)
     data = mk.get_dataset()
-
-    os.makedirs("./data", exist_ok=True)
     data.to_csv("./data/{}.csv".format(args.ticker))
     print('save completed')
