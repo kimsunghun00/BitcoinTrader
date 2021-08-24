@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import requests
 
-def add_variables(data, train = True):
+def add_variables(data):
     # 지난 시가 대비 시가 비율
     data['open_lastopen_ratio'] = np.zeros(len(data))
     data.loc[1:, 'open_lastopen_ratio'] = (data['open'][1:].values - data['open'][:-1].values) / data['open'][
@@ -118,6 +118,7 @@ def cal_stochastic_oscillator(data, window = 14):
     ndays_low = data['low'].rolling(window, min_periods=1).min()
     data['sto_K'] = (data['close'] - ndays_low) / (ndays_high - ndays_low)
     data['sto_D'] = data['sto_K'].rolling(3).mean()
+    data['sto_cross'] = pd.Series(np.where(data['sto_K'] > data['sto_D'], 1, -1), index=data.index)
     return data
 
 
